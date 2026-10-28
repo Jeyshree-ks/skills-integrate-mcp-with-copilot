@@ -41,3 +41,6 @@ __pycache__
 
 # Env files
 .env
+
+# Backend-only teacher credentials
+src/teachers.json

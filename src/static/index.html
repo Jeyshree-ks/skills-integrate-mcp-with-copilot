@@ -10,7 +10,33 @@
     <header>
       <h1>Mergington High School</h1>
       <h2>Extracurricular Activities</h2>
+      <div class="user-menu">
+        <button id="user-menu-button" type="button" aria-label="Teacher account"
+          aria-expanded="false" aria-controls="user-menu">&#128100;</button>
+        <div id="user-menu" class="hidden">
+          <p id="teacher-status">Student view</p>
+          <button id="login-button" type="button">Teacher login</button>
+          <button id="logout-button" class="hidden" type="button">Log out</button>
+        </div>
+      </div>
     </header>
+
+    <dialog id="login-dialog" aria-labelledby="login-title">
+      <form id="login-form">
+        <h3 id="login-title">Teacher login</h3>
+        <div class="form-group">
+          <label for="username">Username:</label>
+          <input id="username" autocomplete="username" required maxlength="100" />
+        </div>
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <input id="password" type="password" autocomplete="current-password" required maxlength="1024" />
+        </div>
+        <p id="login-error" class="error hidden" role="alert"></p>
+        <button type="submit">Log in</button>
+        <button id="cancel-login" type="button">Cancel</button>
+      </form>
+    </dialog>
 
     <main>
       <section id="activities-container">
@@ -23,7 +49,8 @@
 
       <section id="signup-container">
         <h3>Sign Up for an Activity</h3>
-        <form id="signup-form">
+        <p id="login-notice">Only logged-in teachers can register or unregister students.</p>
+        <form id="signup-form" class="hidden">
           <div class="form-group">
             <label for="email">Student Email:</label>
             <input type="email" id="email" required placeholder="your-email@mergington.edu" />
@@ -37,7 +64,7 @@
           </div>
           <button type="submit">Sign Up</button>
         </form>
-        <div id="message" class="hidden"></div>
+        <div id="message" class="hidden" role="status"></div>
       </section>
     </main>
 
