@@ -1,18 +1,21 @@
 """
 High School Management System API
 
-A super simple FastAPI application that allows students to view and sign up
-for extracurricular activities at Mergington High School.
+A simple FastAPI application where students view extracurricular activities
+and authenticated teachers manage registrations at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPAuthorizationCredentials
 import os
 from pathlib import Path
 
+from . import auth
+
 app = FastAPI(title="Mergington High School API",
-              description="API for viewing and signing up for extracurricular activities")
+              description="Public activity listings and teacher-managed registrations")
 
 # Mount the static files directory
 current_dir = Path(__file__).parent
@@ -88,8 +91,22 @@ def get_activities():
     return activities
 
 
+@app.post("/auth/login")
+def login(credentials: auth.LoginRequest, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    return auth.login(credentials)
+
+
+@app.post("/auth/logout", dependencies=[Depends(auth.require_teacher)])
+def logout(credentials: HTTPAuthorizationCredentials = Depends(auth.bearer)):
+    auth.logout(credentials)
+    return {"message": "Logged out"}
+
+
 @app.post("/activities/{activity_name}/signup")
-def signup_for_activity(activity_name: str, email: str):
+def signup_for_activity(
+    activity_name: str, email: str, teacher: str = Depends(auth.require_teacher)
+):
     """Sign up a student for an activity"""
     # Validate activity exists
     if activity_name not in activities:
@@ -111,7 +128,9 @@ def signup_for_activity(activity_name: str, email: str):
 
 
 @app.delete("/activities/{activity_name}/unregister")
-def unregister_from_activity(activity_name: str, email: str):
+def unregister_from_activity(
+    activity_name: str, email: str, teacher: str = Depends(auth.require_teacher)
+):
     """Unregister a student from an activity"""
     # Validate activity exists
     if activity_name not in activities:

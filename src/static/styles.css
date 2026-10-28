@@ -16,8 +16,9 @@ body {
 }
 
 header {
+  position: relative;
   text-align: center;
-  padding: 20px 0;
+  padding: 70px 0 20px;
   margin-bottom: 30px;
   background-color: #1a237e;
   color: white;
@@ -197,4 +198,40 @@ footer {
   margin-top: 30px;
   padding: 20px;
   color: #666;
+}
+
+.user-menu {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+}
+
+#user-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  min-width: 190px;
+  padding: 10px;
+  background-color: #1a237e;
+  border: 1px solid white;
+  border-radius: 5px;
+}
+
+dialog {
+  margin: auto;
+  padding: 24px;
+  width: min(400px, calc(100% - 32px));
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+#login-title,
+#login-error {
+  margin-bottom: 15px;
 }

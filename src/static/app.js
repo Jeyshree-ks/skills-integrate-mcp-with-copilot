@@ -3,15 +3,114 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const loginDialog = document.getElementById("login-dialog");
+  const loginForm = document.getElementById("login-form");
+  const loginError = document.getElementById("login-error");
+  const loginButton = document.getElementById("login-button");
+  const logoutButton = document.getElementById("logout-button");
+  const userMenuButton = document.getElementById("user-menu-button");
+  let accessToken = null;
+
+  function escapeHTML(value) {
+    return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+  }
+
+  function updateAuth(username = null) {
+    const loggedIn = accessToken !== null;
+    signupForm.classList.toggle("hidden", !loggedIn);
+    document.getElementById("login-notice").classList.toggle("hidden", loggedIn);
+    loginButton.classList.toggle("hidden", loggedIn);
+    logoutButton.classList.toggle("hidden", !loggedIn);
+    document.getElementById("teacher-status").textContent =
+      loggedIn ? `Teacher: ${username}` : "Student view";
+    document.querySelectorAll(".delete-btn").forEach((button) => {
+      button.classList.toggle("hidden", !loggedIn);
+    });
+  }
+
+  function handleExpiredSession(response) {
+    if (response.status === 401) {
+      accessToken = null;
+      updateAuth();
+    }
+  }
+
+  userMenuButton.addEventListener("click", () => {
+    const hidden = document.getElementById("user-menu").classList.toggle("hidden");
+    userMenuButton.setAttribute("aria-expanded", String(!hidden));
+  });
+  loginButton.addEventListener("click", () => {
+    loginError.classList.add("hidden");
+    loginDialog.showModal();
+  });
+  document.getElementById("cancel-login").addEventListener("click", () => loginDialog.close());
+  loginDialog.addEventListener("close", () => loginForm.reset());
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = loginForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    try {
+      const response = await fetch("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("username").value,
+          password: document.getElementById("password").value,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        loginError.textContent = typeof result.detail === "string" ? result.detail : "Invalid login details.";
+        loginError.classList.remove("hidden");
+        return;
+      }
+      accessToken = result.access_token;
+      updateAuth(result.username);
+      loginDialog.close();
+    } catch (error) {
+      loginError.textContent = "Unable to log in. Please try again.";
+      loginError.classList.remove("hidden");
+      console.error("Error logging in:", error);
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+
+  logoutButton.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!response.ok && response.status !== 401) {
+        throw new Error("Unable to end the teacher session. Please try again.");
+      }
+      accessToken = null;
+      signupForm.reset();
+      updateAuth();
+      messageDiv.classList.add("hidden");
+    } catch (error) {
+      messageDiv.textContent = "Unable to log out. Please try again.";
+      messageDiv.className = "error";
+      console.error("Error logging out:", error);
+    }
+  });
 
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
       const response = await fetch("/activities");
+      if (!response.ok) {
+        throw new Error("Failed to load activities");
+      }
       const activities = await response.json();
 
       // Clear loading message
       activitiesList.innerHTML = "";
+      const selectedActivity = activitySelect.value;
+      activitySelect.innerHTML = '<option value="">-- Select an activity --</option>';
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
@@ -30,7 +129,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ${details.participants
                   .map(
                     (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
+                      `<li><span class="participant-email">${escapeHTML(email)}</span><button class="delete-btn${accessToken ? "" : " hidden"}" aria-label="Unregister ${escapeHTML(email)}" data-activity="${escapeHTML(name)}" data-email="${escapeHTML(email)}">❌</button></li>`
                   )
                   .join("")}
               </ul>
@@ -38,9 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
             : `<p><em>No participants yet</em></p>`;
 
         activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
+          <h4>${escapeHTML(name)}</h4>
+          <p>${escapeHTML(details.description)}</p>
+          <p><strong>Schedule:</strong> ${escapeHTML(details.schedule)}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <div class="participants-container">
             ${participantsHTML}
@@ -55,6 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
         option.textContent = name;
         activitySelect.appendChild(option);
       });
+      activitySelect.value = selectedActivity;
 
       // Add event listeners to delete buttons
       document.querySelectorAll(".delete-btn").forEach((button) => {
@@ -80,10 +180,12 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/unregister?email=${encodeURIComponent(email)}`,
         {
           method: "DELETE",
+          headers: { Authorization: `Bearer ${accessToken}` },
         }
       );
 
       const result = await response.json();
+      handleExpiredSession(response);
 
       if (response.ok) {
         messageDiv.textContent = result.message;
@@ -124,10 +226,12 @@ document.addEventListener("DOMContentLoaded", () => {
         )}/signup?email=${encodeURIComponent(email)}`,
         {
           method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
         }
       );
 
       const result = await response.json();
+      handleExpiredSession(response);
 
       if (response.ok) {
         messageDiv.textContent = result.message;
